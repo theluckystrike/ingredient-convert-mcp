@@ -28,14 +28,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # The repository had no lockfile. This first run resolves one and uploads it, so the next commit can pin it with npm ci.
-      - run: npm install --no-audit --no-fund
-      - uses: actions/upload-artifact@v4
-        with:
-          name: package-lock
-          path: package-lock.json
-          retention-days: 14
-          if-no-files-found: error
+          cache: npm
+      - run: npm ci
       - run: npm run build
       - run: npm run typecheck
       # worker.ts is not in the tsc build, so the Worker tests load the wrangler bundle (out/worker.js), the file that is deployed.
