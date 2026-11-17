@@ -93,6 +93,22 @@ test("scale_recipe doubles and halves with friendly fractions", () => {
   assert.equal(h.items[0].scaled, "1/2 cups");
 });
 
+test("scale_recipe keeps counts and any unit as written (2 eggs x 1.5 is 3 eggs, not 3 cups)", () => {
+  // Found on the live Worker 2026-11-17: a line with no unit was labelled "cups".
+  const r = scaleRecipe([
+    { ingredient: "eggs", amount: 2 },
+    { ingredient: "garlic", amount: 3, unit: "cloves" },
+    { ingredient: "butter", amount: "1/2", unit: "tbsp" },
+  ], 1.5);
+  assert.deepEqual(r.items.map((i) => [i.unit, i.original, i.scaled, i.scaledDecimal]), [
+    [null, "2 eggs", "3 eggs", 3],
+    ["cloves", "3 cloves", "4 1/2 cloves", 4.5],
+    ["tablespoons", "1/2 tablespoons", "3/4 tablespoons", 0.75],
+  ]);
+  assert.equal(scaleRecipe([{ ingredient: "x", amount: 1, unit: "constructor" }], 2).items[0].scaled, "2 constructor");
+  assert.throws(() => convertIngredient("water", 1, "constructor"), /Unknown unit/);
+});
+
 test("scale_recipe rejects zero/negative/absurd factors", () => {
   assert.throws(() => scaleRecipe([{ ingredient: "milk", amount: 1 }], 0), /positive/);
   assert.throws(() => scaleRecipe([{ ingredient: "milk", amount: 1 }], -1), /positive/);

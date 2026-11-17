@@ -104,7 +104,7 @@ const UNIT_ALIASES: Record<string, VolumeUnit> = {
 
 export function normalizeUnit(raw: string): VolumeUnit {
   const key = raw.trim().toLowerCase();
-  const unit = UNIT_ALIASES[key];
+  const unit = Object.hasOwn(UNIT_ALIASES, key) ? UNIT_ALIASES[key] : undefined; // not "constructor" from the prototype
   if (!unit) {
     throw new Error(`Unknown unit "${raw}". Valid units: cups, tablespoons, teaspoons, milliliters (ml), fluid ounces (floz), grams (g), ounces (oz).`);
   }
@@ -222,7 +222,7 @@ export function friendlyFraction(n: number): string {
 
 export interface ScaleResult {
   factor: number;
-  items: { ingredient: string; original: string; scaled: string; scaledDecimal: number }[];
+  items: { ingredient: string; unit: string | null; original: string; scaled: string; scaledDecimal: number }[];
 }
 
 /**
@@ -236,8 +236,13 @@ export function scaleRecipe(entries: { ingredient: string; amount: number | stri
     const amt = typeof e.amount === "string" ? parseFractionString(e.amount) : e.amount;
     if (!Number.isFinite(amt) || amt < 0) throw new Error(`invalid amount for ${e.ingredient}: ${JSON.stringify(e.amount)}`);
     const scaled = amt * factor;
-    const unit = e.unit ? normalizeUnit(e.unit) : "cups";
-    return { ingredient: e.ingredient, original: `${e.amount} ${unit}`, scaled: `${friendlyFraction(scaled)} ${unit}`, scaledDecimal: round(scaled) };
+    // Scaling is plain multiplication, so any unit works: a known volume or mass unit is normalised ("tbsp" ->
+    // "tablespoons"), anything else ("cloves", "cans", "pinch") is kept as written. With no unit the line is a count
+    // ("2 eggs"); it used to be labelled "cups", so 2 eggs scaled by 1.5 read "3 cups".
+    const raw = e.unit?.trim();
+    const unit = raw ? (Object.hasOwn(UNIT_ALIASES, raw.toLowerCase()) ? UNIT_ALIASES[raw.toLowerCase()] : raw) : null;
+    const label = (n: string) => `${n} ${unit ?? e.ingredient}`;
+    return { ingredient: e.ingredient, unit, original: label(String(e.amount)), scaled: label(friendlyFraction(scaled)), scaledDecimal: round(scaled) };
   });
   return { factor, items };
 }

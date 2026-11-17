@@ -58,19 +58,19 @@ export function createServer(): McpServer {
   }));
 
   regTool('scale_recipe', {
-    description: 'Scale recipe ingredient amounts by a factor (double, halve, 1.5x...). Output in friendly fractions like 1 1/2 cups.',
+    description: 'Scale recipe ingredient amounts by a factor (double, halve, 1.5x...). Output in friendly fractions like 1 1/2 cups. Any unit can be scaled (cups, tbsp, grams, cloves, cans); a line without a unit is a count, e.g. 2 eggs.',
     inputSchema: {
       items: z.array(z.object({
         ingredient: z.string().min(1).max(60),
         amount: z.union([z.number().finite(), z.string().min(1).max(20)]).describe("Number or fraction string like '1 1/2'"),
-        unit: z.string().min(1).max(20).optional(),
+        unit: z.string().min(1).max(20).optional().describe("Unit as written, e.g. 'cups', 'tbsp', 'g', 'cloves'. Omit for a count such as 2 eggs."),
       })).min(1).max(50).describe('Recipe lines to scale'),
       factor: z.number().finite().positive().describe('Scale factor, e.g. 2 to double, 0.5 to halve'),
     },
     annotations: RO,
   }, wrap((a) => {
     const r = scaleRecipe(a.items, a.factor);
-    const line = r.items.map((i) => `${i.original} -> ${i.scaled}`).join('; ');
+    const line = r.items.map((i) => `${i.original}${i.unit ? ` ${i.ingredient}` : ''} -> ${i.scaled}`).join('; ');
     return { ...r, summary: `Scaled by ${a.factor}x: ${line.slice(0, 200)}${line.length > 200 ? '...' : ''}` } as Out;
   }));
 
